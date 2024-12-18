@@ -3,22 +3,26 @@ package com.fnkcode.uit.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fnkcode.uit.entity.Employee;
 import com.fnkcode.uit.service.EmployeeService;
-import org.hamcrest.CoreMatchers;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
-import org.mockito.BDDMockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
-import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
-import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
+import java.util.List;
+import java.util.Optional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.*;
+import static org.mockito.BDDMockito.*;
+import static org.hamcrest.CoreMatchers.*;
+import  org.mockito.ArgumentMatchers;
 
 @WebMvcTest
 public class EmployeeControllerTest {
@@ -45,7 +49,7 @@ public class EmployeeControllerTest {
     @Test
     public void givenEmployeeObject_whenCreateEmployee_thenReturnSavedEmployee() throws Exception {
         //given - precondition or setup
-        BDDMockito.given(employeeService.saveEmployee(ArgumentMatchers.any(Employee.class)))
+        given(employeeService.saveEmployee(ArgumentMatchers.any(Employee.class)))
                 .willAnswer(invocation->invocation.getArgument(0));
 
         // when - action or behaviour
@@ -55,11 +59,80 @@ public class EmployeeControllerTest {
         );
 
         //then verify the output
-        result.andDo(MockMvcResultHandlers.print())
+        result.andDo(print())
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.firstName", CoreMatchers.is(employee.getFirstName())))
-                .andExpect(jsonPath("$.lastName", CoreMatchers.is(employee.getLastName())));
+                .andExpect(jsonPath("$.firstName", is(employee.getFirstName())))
+                .andExpect(jsonPath("$.lastName", is(employee.getLastName())));
     }
+
+
+    @Test
+    @DisplayName("JUNIT test for get all employees endpoint")
+    public void givenEmployeeList_whenGetAllEmployees_thenReturnEmployeeList() throws Exception {
+        //given - precondition or setup
+        given(employeeService.getAllEmployees())
+                .willReturn(List.of(employee));
+
+        // when - action or behaviour
+        ResultActions result = mockMvc.perform(get("/api/employees")
+                .contentType(MediaType.APPLICATION_JSON));
+
+        //then verify the output
+        result.andExpect(status().isOk())
+                .andDo(print())
+                .andExpect(jsonPath("$.size()", is(Matchers.greaterThan(0))));
+    }
+
+    @Test
+    @DisplayName("JUNIT test for get employee by id , positive scenario")
+    public void givenEmployeeId_whenGetEmployeeById_thenReturnOK() throws Exception {
+        //given - precondition or setup
+        given(employeeService.getEmployeeById(ArgumentMatchers.any(Long.class)))
+                .willReturn(Optional.of(employee));
+
+        // when - action or behaviour
+        ResultActions result = mockMvc.perform(get("/api/employees/{id}",employee.getId())
+                .contentType(MediaType.APPLICATION_JSON));
+
+        //then
+        result.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id",is(employee.getId().intValue())))
+                .andExpect(jsonPath("$.firstName",is(employee.getFirstName())))
+        ;
+    }
+
+    @Test
+    @DisplayName("JUNIT test for get employee by id , negative scenario")
+    public void givenEmployeeId_whenGetEmployeeById_thenReturnNotFound() throws Exception {
+        //given - precondition or setup
+        given(employeeService.getEmployeeById(ArgumentMatchers.any(Long.class)))
+                .willReturn(Optional.empty());
+
+        // when - action or behaviour
+        ResultActions result = mockMvc.perform(get("/api/employees/{id}",employee.getId())
+                .contentType(MediaType.APPLICATION_JSON));
+
+        //then
+        result.andDo(print())
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    public void givenEmployeeId_whenDeleteById_thenRetunOk() throws Exception {
+        //given - precondition or setup
+        willDoNothing().given(employeeService).deleteById(ArgumentMatchers.any(Long.class));
+
+        // when - action or behaviour
+        ResultActions result = mockMvc.perform(delete("/api/employees/{id}", employee.getId()));
+
+        //then verify the output
+        result.andDo(print())
+                .andExpect(status().isAccepted());
+    }
+
+
+
 
 
 }
